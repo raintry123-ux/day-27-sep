@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login & Register System</title>
     <style>
-        /* पहले जैसा CSS */
         * {
             margin: 0;
             padding: 0;
@@ -151,6 +150,13 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* small screen adjustments */
+        @media (max-width: 420px) {
+            .form-container { padding: 24px; }
+            input { padding: 10px; font-size: 14px; }
+            button { padding: 10px; font-size: 14px; }
+        }
     </style>
     
     <!-- Firebase SDK -->
@@ -173,6 +179,20 @@
                     <label for="loginPassword">Password</label>
                     <input type="password" id="loginPassword" required placeholder="Enter your password">
                 </div>
+
+                <!-- optional fields: if user provides them at login we'll update Firestore user doc -->
+                <div style="margin-top:10px; font-size:12px; color:#555; margin-bottom:8px;">
+                    <strong>Optional:</strong> enter Full name and Phone to update your profile after login.
+                </div>
+                <div class="form-group">
+                    <label for="loginName">Full Name (optional)</label>
+                    <input type="text" id="loginName" placeholder="Full name (optional)">
+                </div>
+                <div class="form-group">
+                    <label for="loginPhone">Phone Number (optional)</label>
+                    <input type="tel" id="loginPhone" placeholder="Phone number (optional)">
+                </div>
+
                 <button type="submit">Login</button>
             </form>
             <div class="toggle-form">
@@ -303,6 +323,10 @@
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
             const loginBtn = loginForm.querySelector('button');
+
+            // optional profile updates
+            const loginName = document.getElementById('loginName').value.trim();
+            const loginPhone = document.getElementById('loginPhone').value.trim();
             
             if (!email || !password) {
                 showMessage(loginMessage, "Please enter both email and password", 'error');
@@ -325,11 +349,26 @@
                     email: user.email,
                     loginTime: new Date().toISOString()
                 }));
+
+                // If optional fields provided, update Firestore user's document
+                if (loginName || loginPhone) {
+                    try {
+                        const dataToUpdate = {};
+                        if (loginName) dataToUpdate.fullName = loginName;
+                        if (loginPhone) dataToUpdate.phone = loginPhone;
+                        dataToUpdate.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+
+                        await db.collection('users').doc(user.uid).set(dataToUpdate, { merge: true });
+                        console.log('User profile updated on login with optional fields');
+                    } catch (err) {
+                        console.warn('Failed to update user profile on login:', err);
+                    }
+                }
                 
-                // Redirect to dashboard after 2 seconds
+                // Redirect to dashboard after short pause so user sees message
                 setTimeout(() => {
                     window.location.href = 'dashboard.html';
-                }, 2000);
+                }, 1000);
                 
             } catch (error) {
                 console.error('Login error:', error);
@@ -359,7 +398,7 @@
             }
         });
 
-        // Register Form Submission
+        // Register Form Submission - UPDATED FOR AUTO FIELDS
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -389,23 +428,25 @@
                 
                 console.log('User created:', user.uid);
                 
-                // Save user data to Firestore
+                // Save user data to Firestore with ALL required fields
                 await db.collection('users').doc(user.uid).set({
                     email: email,
-                    fullName: name,
-                    phone: phone,
+                    fullName: name,        // ✅ Correct field name
+                    phone: phone,          // ✅ Correct field name  
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    status: 'active'
+                    status: 'active',
+                    // Also save name field for backward compatibility
+                    name: name
                 });
                 
                 showMessage(registerMessage, "Registration successful! You can now login.", 'success');
                 
-                // Switch to login form after 3 seconds
+                // Switch to login form after 2 seconds
                 setTimeout(() => {
                     loginContainer.classList.remove('active');
                     registerForm.reset();
                     clearMessages();
-                }, 3000);
+                }, 2000);
                 
             } catch (error) {
                 console.error('Registration error:', error);
@@ -432,24 +473,75 @@
             }
         });
 
-        // Check authentication state - FIXED VERSION
+        // For existing users - Auto update their documents with missing fields
+        async function updateExistingUsers() {
+            try {
+                const usersQuery = await db.collection('users').get();
+                const updatePromises = [];
+                
+                usersQuery.forEach(doc => {
+                    const userData = doc.data();
+                    const updates = {};
+                    
+                    // If user has 'name' but not 'fullName', copy the value
+                    if (userData.name && !userData.fullName) {
+                        updates.fullName = userData.name;
+                    }
+                    
+                    // If phone field is missing, add empty field
+                    if (!userData.phone) {
+                        updates.phone = 'Not set';
+                    }
+                    
+                    if (Object.keys(updates).length > 0) {
+                        updatePromises.push(
+                            db.collection('users').doc(doc.id).set(updates, { merge: true })
+                        );
+                    }
+                });
+                
+                if (updatePromises.length > 0) {
+                    await Promise.all(updatePromises);
+                    console.log(`Updated ${updatePromises.length} user documents`);
+                }
+            } catch (error) {
+                console.error('Error updating existing users:', error);
+            }
+        }
+
+        // Run update on page load
+        if (auth && db) {
+            updateExistingUsers();
+        }
+
+        // Check authentication state
         if (auth && !isLogout) {
             auth.onAuthStateChanged((user) => {
                 if (user) {
                     console.log("User already logged in:", user.email);
-                    // Check if we're not already on dashboard
-                    if (!window.location.href.includes('dashboard.html')) {
-                        // Store user data and redirect
+                    // Store user data and redirect if needed
+                    try {
+                        const stored = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                        if (!stored || stored.uid !== user.uid) {
+                            localStorage.setItem('currentUser', JSON.stringify({
+                                uid: user.uid,
+                                email: user.email,
+                                loginTime: new Date().toISOString()
+                            }));
+                        }
+                    } catch (err) {
                         localStorage.setItem('currentUser', JSON.stringify({
                             uid: user.uid,
                             email: user.email,
                             loginTime: new Date().toISOString()
                         }));
+                    }
+
+                    if (!window.location.href.includes('dashboard.html')) {
                         window.location.href = 'dashboard.html';
                     }
                 } else {
                     console.log("User is signed out - showing login form");
-                    // User is signed out, show login form normally
                 }
             });
         }
