@@ -48,6 +48,7 @@
             padding: 25px;
             border-radius: 10px;
             margin-bottom: 30px;
+            word-break: break-word;
         }
         
         .user-info h3 {
@@ -237,11 +238,18 @@
             to { transform: rotate(360deg); }
         }
 
+        /* Calendar styles - responsive */
+        .calendar-wrapper {
+            overflow-x: auto; /* allow horizontal scroll on small screens */
+            padding-bottom: 8px;
+        }
+
         .calendar {
             display: grid;
-            grid-template-columns: repeat(7, 1fr);
+            grid-template-columns: repeat(7, minmax(60px, 1fr));
             gap: 5px;
             margin: 15px 0;
+            align-items: stretch;
         }
         
         .calendar-day {
@@ -249,6 +257,9 @@
             text-align: center;
             border-radius: 5px;
             background: #f8f9fa;
+            min-width: 60px;
+            word-break: break-word;
+            font-size: 14px;
         }
         
         .calendar-day.present {
@@ -265,6 +276,7 @@
         .calendar-day-header {
             font-weight: bold;
             background: #e2e8f0;
+            padding: 8px;
         }
         
         .admin-btn {
@@ -275,6 +287,114 @@
             border-radius: 5px;
             cursor: pointer;
             margin-left: 10px;
+        }
+
+        /* Admin Panel Styles */
+        .admin-student-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #8b5cf6;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .admin-student-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .admin-student-card h4 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .admin-student-card p {
+            margin: 5px 0;
+            color: #555;
+        }
+        
+        .student-details-modal {
+            max-width: 800px;
+        }
+        
+        .student-details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .student-detail-card {
+            background: #f0f9ff;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .student-attendance-records {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .search-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        .search-container input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .search-container:after {
+            content: "🔍";
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+        }
+
+        /* Admin Only Dashboard Styles */
+        .admin-dashboard {
+            display: none;
+        }
+        
+        .admin-dashboard.active {
+            display: block;
+        }
+        
+        .admin-welcome {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .admin-welcome h2 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .admin-welcome p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        /* small screen tweaks */
+        @media (max-width: 480px) {
+            .calendar { grid-auto-rows: 48px; }
+            .calendar-day { padding: 6px; font-size: 12px; min-width: 48px; }
+            .header h1 { font-size: 22px; }
+            .dashboard-content { padding: 20px; }
+            .student-details-grid { grid-template-columns: 1fr; }
         }
     </style>
     
@@ -291,10 +411,11 @@
         <div class="header">
             <h1>Welcome to Dashboard</h1>
             <p>College Attendance System</p>
-            <button class="admin-btn" onclick="openAdminPanel()">Admin Panel</button>
+            <button class="admin-btn" id="adminPanelBtn" style="display: none;" onclick="openAdminPanel()">Admin Panel</button>
         </div>
         
-        <div class="dashboard-content">
+        <!-- Regular User Dashboard -->
+        <div class="dashboard-content" id="regularDashboard">
             <!-- User Information -->
             <div class="user-info">
                 <h3>User Information</h3>
@@ -350,7 +471,7 @@
                     </div>
                     
                     <!-- Monthly Calendar View -->
-                    <div id="monthCalendar" style="margin-top: 20px;"></div>
+                    <div id="monthCalendar" style="margin-top: 20px;" class="calendar-wrapper"></div>
                 </div>
             </div>
             
@@ -372,6 +493,54 @@
                     <div class="action-icon">📈</div>
                     <h3>Detailed Statistics</h3>
                     <p>Charts and detailed analysis</p>
+                </div>
+            </div>
+            
+            <center>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </center>
+        </div>
+        
+        <!-- Admin Only Dashboard -->
+        <div class="admin-dashboard" id="adminDashboard">
+            <div class="admin-welcome">
+                <h2>Welcome, Administrator</h2>
+                <p>You have access to the full admin panel to manage all student data</p>
+            </div>
+            
+            <div class="user-info">
+                <h3>Admin Information</h3>
+                <div class="info-item">
+                    <strong>Email:</strong> <span id="adminEmail">Loading...</span>
+                </div>
+                <div class="info-item">
+                    <strong>Full Name:</strong> <span id="adminName">Loading...</span>
+                </div>
+                <div class="info-item">
+                    <strong>Phone:</strong> <span id="adminPhone">Loading...</span>
+                </div>
+                <div class="info-item">
+                    <strong>Role:</strong> <span style="color: #8b5cf6; font-weight: bold;">Administrator</span>
+                </div>
+            </div>
+            
+            <div class="actions">
+                <div class="action-card" onclick="openAdminPanel()">
+                    <div class="action-icon">👥</div>
+                    <h3>Manage Students</h3>
+                    <p>View and manage all student data</p>
+                </div>
+                
+                <div class="action-card" onclick="exportToCSV()">
+                    <div class="action-icon">📤</div>
+                    <h3>Export Data</h3>
+                    <p>Export student data to CSV</p>
+                </div>
+                
+                <div class="action-card" onclick="viewAdminProfile()">
+                    <div class="action-icon">👤</div>
+                    <h3>Admin Profile</h3>
+                    <p>View your admin profile</p>
                 </div>
             </div>
             
@@ -417,11 +586,23 @@
             <h2>📊 Admin Panel - All Students Report</h2>
             <div id="adminContent">
                 <div style="margin-bottom: 20px;">
-                    <input type="text" id="searchStudent" placeholder="Search students..." style="padding: 8px; width: 100%; margin-bottom: 10px;">
+                    <div class="search-container">
+                        <input type="text" id="searchStudent" placeholder="Search students by name, email, or phone..." onkeyup="filterStudents()">
+                    </div>
                     <button onclick="loadAllStudents()" class="admin-btn">Refresh Data</button>
+                    <button onclick="exportToCSV()" class="admin-btn">Export to CSV</button>
                 </div>
                 <div id="allStudentsData" style="max-height: 500px; overflow-y: auto;"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- Student Details Modal -->
+    <div id="studentDetailsModal" class="modal">
+        <div class="modal-content student-details-modal">
+            <span class="close" onclick="closeModal('studentDetailsModal')">&times;</span>
+            <h2>Student Details</h2>
+            <div id="studentDetailsContent"></div>
         </div>
     </div>
 
@@ -452,12 +633,18 @@
         let userData = null;
         let allAttendanceRecords = [];
         let attendanceChart = null;
+        let allStudentsData = []; // Store all students data for search
+        let isAdminUser = false;
 
         // Check if user is logged in and load data
         window.addEventListener('load', async function() {
-            currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+            try {
+                currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+            } catch (err) {
+                currentUser = null;
+            }
             
-            if (!currentUser || !currentUser.email) {
+            if (!currentUser || !currentUser.email || !currentUser.uid) {
                 window.location.href = 'index.html';
                 return;
             }
@@ -465,18 +652,36 @@
             // Display basic user info
             document.getElementById('userEmail').textContent = currentUser.email;
             document.getElementById('userId').textContent = currentUser.uid || 'N/A';
+            document.getElementById('adminEmail').textContent = currentUser.email;
 
             // Load user data from Firestore
             await loadUserData();
             
-            // Load all attendance records
-            await loadAllAttendanceRecords();
+            // Check if user is admin and show appropriate dashboard
+            await checkAdminStatus();
             
-            // Check today's attendance
-            await checkTodaysAttendance();
+            if (isAdminUser) {
+                // Show admin dashboard and hide regular dashboard
+                document.getElementById('regularDashboard').style.display = 'none';
+                document.getElementById('adminDashboard').classList.add('active');
+                document.getElementById('adminPanelBtn').style.display = 'inline-block';
+                
+                // Load admin data
+                await loadAllStudents();
+            } else {
+                // Show regular dashboard
+                document.getElementById('regularDashboard').style.display = 'block';
+                document.getElementById('adminDashboard').classList.remove('active');
+                
+                // Load all attendance records for regular users
+                await loadAllAttendanceRecords();
+                
+                // Check today's attendance
+                await checkTodaysAttendance();
 
-            // Calculate and display monthly statistics
-            await calculateMonthlyStats();
+                // Calculate and display monthly statistics
+                await calculateMonthlyStats();
+            }
         });
 
         // Load user data from Firestore
@@ -485,15 +690,49 @@
                 const userDoc = await db.collection('users').doc(currentUser.uid).get();
                 if (userDoc.exists) {
                     userData = userDoc.data();
+                    // Display user information on dashboard
                     document.getElementById('userName').textContent = userData.fullName || 'Not set';
                     document.getElementById('userPhone').textContent = userData.phone || 'Not set';
+                    document.getElementById('adminName').textContent = userData.fullName || 'Not set';
+                    document.getElementById('adminPhone').textContent = userData.phone || 'Not set';
+                } else {
+                    // If user doc doesn't exist, create one with minimal info
+                    await db.collection('users').doc(currentUser.uid).set({
+                        email: currentUser.email,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        status: 'active'
+                    }, { merge: true });
+                    
+                    // Set default values for display
+                    document.getElementById('userName').textContent = 'Not set';
+                    document.getElementById('userPhone').textContent = 'Not set';
+                    document.getElementById('adminName').textContent = 'Not set';
+                    document.getElementById('adminPhone').textContent = 'Not set';
                 }
             } catch (error) {
                 console.error('Error loading user data:', error);
+                // Set default values in case of error
+                document.getElementById('userName').textContent = 'Error loading';
+                document.getElementById('userPhone').textContent = 'Error loading';
+                document.getElementById('adminName').textContent = 'Error loading';
+                document.getElementById('adminPhone').textContent = 'Error loading';
             }
         }
 
-        // Load all attendance records
+        // Check if user is admin
+        async function checkAdminStatus() {
+            try {
+                const userDoc = await db.collection('users').doc(currentUser.uid).get();
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    isAdminUser = userData.role === 'admin';
+                }
+            } catch (error) {
+                console.error('Error checking admin status:', error);
+            }
+        }
+
+        // Load all attendance records (for regular users)
         async function loadAllAttendanceRecords() {
             try {
                 const attendanceQuery = await db.collection('attendance')
@@ -522,7 +761,7 @@
             }
         }
 
-        // Mark Attendance Function
+        // Mark Attendance Function (for regular users)
         async function markAttendance() {
             const btn = document.getElementById('markAttendanceBtn');
             const statusDiv = document.getElementById('attendanceStatus');
@@ -572,7 +811,7 @@
             }
         }
 
-        // Check if attendance already marked today
+        // Check if attendance already marked today (for regular users)
         async function checkTodaysAttendance() {
             try {
                 const today = new Date().toISOString().split('T')[0];
@@ -592,7 +831,7 @@
             }
         }
 
-        // Calculate Monthly Statistics (FIXED - Running Month)
+        // Calculate Monthly Statistics (FIXED - Running Month) (for regular users)
         async function calculateMonthlyStats() {
             try {
                 const now = new Date();
@@ -635,7 +874,7 @@
             }
         }
 
-        // Generate Calendar View
+        // Generate Calendar View (for regular users)
         function generateCalendarView(month, year, records) {
             const calendarDiv = document.getElementById('monthCalendar');
             const firstDay = new Date(year, month, 1);
@@ -667,14 +906,14 @@
                 if (isPresent) dayClass += ' present';
                 else if (!isWeekend && day <= new Date().getDate()) dayClass += ' absent';
                 
-                calendarHTML += `<div class="${dayClass}">${day}${isToday ? '📍' : ''}</div>`;
+                calendarHTML += `<div class="${dayClass}">${day}${isToday ? ' 📍' : ''}</div>`;
             }
             
             calendarHTML += '</div>';
             calendarDiv.innerHTML = calendarHTML;
         }
 
-        // View Profile Function
+        // View Profile Function (for regular users)
         async function viewProfile() {
             const modal = document.getElementById('profileModal');
             const profileInfo = document.getElementById('profileInfo');
@@ -694,7 +933,27 @@
             modal.style.display = 'block';
         }
 
-        // View Attendance Records
+        // View Admin Profile Function
+        async function viewAdminProfile() {
+            const modal = document.getElementById('profileModal');
+            const profileInfo = document.getElementById('profileInfo');
+            
+            profileInfo.innerHTML = `
+                <div style="line-height: 2;">
+                    <p><strong>Email:</strong> ${currentUser.email}</p>
+                    <p><strong>Full Name:</strong> ${userData?.fullName || 'Not set'}</p>
+                    <p><strong>Phone:</strong> ${userData?.phone || 'Not set'}</p>
+                    <p><strong>User ID:</strong> ${currentUser.uid}</p>
+                    <p><strong>Role:</strong> <span style="color: #8b5cf6; font-weight: bold;">Administrator</span></p>
+                    <p><strong>Member Since:</strong> ${userData?.createdAt ? 
+                        new Date(userData.createdAt.seconds * 1000).toLocaleDateString() : 'Unknown'}</p>
+                </div>
+            `;
+            
+            modal.style.display = 'block';
+        }
+
+        // View Attendance Records (for regular users)
         async function viewAttendanceRecords() {
             const modal = document.getElementById('recordsModal');
             const recordsDiv = document.getElementById('attendanceRecords');
@@ -729,7 +988,7 @@
             }
         }
 
-        // View Detailed Statistics with Charts
+        // View Detailed Statistics with Charts (for regular users)
         async function viewDetailedStats() {
             const modal = document.getElementById('statsModal');
             const statsDiv = document.getElementById('attendanceStats');
@@ -755,18 +1014,20 @@
                 const data = labels.map(label => monthlyData[label]);
                 
                 statsDiv.innerHTML = `
-                    <div style="text-align: center;">
-                        <h3>Monthly Attendance Trend</h3>
-                        <canvas id="attendanceChart" width="400" height="200"></canvas>
-                        <div style="margin-top: 20px;">
-                            <p><strong>Total Records:</strong> ${allAttendanceRecords.length}</p>
-                            <p><strong>First Record:</strong> ${allAttendanceRecords.length > 0 ? 
-                                new Date(allAttendanceRecords[allAttendanceRecords.length-1].date).toLocaleDateString() : 'N/A'}</p>
-                        </div>
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h3>Monthly Attendance Overview</h3>
+                    </div>
+                    <canvas id="attendanceChart" width="400" height="200"></canvas>
+                    <div style="margin-top: 20px;">
+                        <p><strong>Total Records:</strong> ${allAttendanceRecords.length}</p>
+                        <p><strong>First Record:</strong> ${allAttendanceRecords.length > 0 ? 
+                            `${allAttendanceRecords[allAttendanceRecords.length-1].date}` : 'N/A'}</p>
+                        <p><strong>Latest Record:</strong> ${allAttendanceRecords.length > 0 ? 
+                            `${allAttendanceRecords[0].date}` : 'N/A'}</p>
                     </div>
                 `;
                 
-                // Create chart
+                // Render chart
                 const ctx = document.getElementById('attendanceChart').getContext('2d');
                 if (attendanceChart) {
                     attendanceChart.destroy();
@@ -779,8 +1040,8 @@
                         datasets: [{
                             label: 'Attendance Days',
                             data: data,
-                            backgroundColor: 'rgba(16, 185, 129, 0.6)',
-                            borderColor: 'rgba(16, 185, 129, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
                             borderWidth: 1
                         }]
                     },
@@ -810,101 +1071,225 @@
             }
         }
 
-        // Admin Panel Functions
-        async function openAdminPanel() {
-            const modal = document.getElementById('adminModal');
-            modal.style.display = 'block';
-            await loadAllStudents();
-        }
-
+        // Load All Students Data (Admin Function)
         async function loadAllStudents() {
+            const studentsDiv = document.getElementById('allStudentsData');
+            studentsDiv.innerHTML = '<p>Loading student data...</p>';
+            
             try {
-                const studentsDiv = document.getElementById('allStudentsData');
-                studentsDiv.innerHTML = '<p>Loading all students data...</p>';
-                
                 // Get all users
                 const usersQuery = await db.collection('users').get();
-                const allUsers = [];
+                allStudentsData = [];
                 
-                usersQuery.forEach(doc => {
-                    allUsers.push({
-                        id: doc.id,
-                        ...doc.data()
-                    });
-                });
-                
-                // Get attendance for all users
-                const attendanceQuery = await db.collection('attendance').get();
-                const attendanceMap = {};
-                
-                attendanceQuery.forEach(doc => {
-                    const record = doc.data();
-                    if (!attendanceMap[record.userId]) {
-                        attendanceMap[record.userId] = [];
-                    }
-                    attendanceMap[record.userId].push(record);
-                });
-                
-                let adminHTML = '<div style="display: grid; gap: 15px;">';
-                
-                allUsers.forEach(user => {
-                    const userAttendance = attendanceMap[user.id] || [];
-                    const thisMonth = new Date().getMonth();
-                    const thisYear = new Date().getFullYear();
+                for (const userDoc of usersQuery.docs) {
+                    const userData = userDoc.data();
                     
-                    const monthRecords = userAttendance.filter(record => {
-                        const recordDate = new Date(record.date);
-                        return recordDate.getMonth() === thisMonth && 
-                               recordDate.getFullYear() === thisYear;
+                    // Get attendance records for this user
+                    const attendanceQuery = await db.collection('attendance')
+                        .where('userId', '==', userDoc.id)
+                        .get();
+                    
+                    const attendanceRecords = [];
+                    attendanceQuery.forEach(doc => {
+                        attendanceRecords.push(doc.data());
                     });
                     
-                    adminHTML += `
-                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                            <h4>${user.fullName || 'Unknown'} (${user.email})</h4>
-                            <p><strong>Phone:</strong> ${user.phone || 'N/A'} | 
-                            <strong>Total Attendance:</strong> ${userAttendance.length} records</p>
-                            <p><strong>This Month:</strong> ${monthRecords.length} days present</p>
-                            <button onclick="viewStudentDetails('${user.id}')" class="admin-btn">View Details</button>
-                        </div>
-                    `;
-                });
+                    // Calculate stats
+                    const totalAttendance = attendanceRecords.length;
+                    const lastAttendance = attendanceRecords.length > 0 ? 
+                        attendanceRecords[0].date : 'No records';
+                    
+                    allStudentsData.push({
+                        id: userDoc.id,
+                        ...userData,
+                        totalAttendance,
+                        lastAttendance,
+                        attendanceRecords
+                    });
+                }
                 
-                adminHTML += '</div>';
-                studentsDiv.innerHTML = adminHTML;
+                // Sort by name
+                allStudentsData.sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
+                
+                // Display students
+                displayStudents(allStudentsData);
                 
             } catch (error) {
-                console.error('Error loading admin data:', error);
-                document.getElementById('allStudentsData').innerHTML = 
-                    '<p style="color: red;">Error loading admin data.</p>';
+                console.error('Error loading students:', error);
+                studentsDiv.innerHTML = '<p style="color: red;">Error loading student data.</p>';
             }
         }
 
-        function viewStudentDetails(userId) {
-            alert(`Student details view for user: ${userId}\nThis would open a detailed view in a real application.`);
-            // In a real app, this would show detailed student analytics
+        // Display Students in Admin Panel
+        function displayStudents(students) {
+            const studentsDiv = document.getElementById('allStudentsData');
+            
+            if (students.length === 0) {
+                studentsDiv.innerHTML = '<p>No students found.</p>';
+                return;
+            }
+            
+            let studentsHTML = '';
+            
+            students.forEach(student => {
+                studentsHTML += `
+                    <div class="admin-student-card" onclick="viewStudentDetails('${student.id}')">
+                        <h4>${student.fullName || 'Unknown'}</h4>
+                        <p><strong>Email:</strong> ${student.email}</p>
+                        <p><strong>Phone:</strong> ${student.phone || 'Not set'}</p>
+                        <p><strong>Total Attendance:</strong> ${student.totalAttendance} days</p>
+                        <p><strong>Last Attendance:</strong> ${student.lastAttendance}</p>
+                        <p><strong>Role:</strong> ${student.role || 'student'}</p>
+                    </div>
+                `;
+            });
+            
+            studentsDiv.innerHTML = studentsHTML;
         }
 
-        // Modal functions
+        // Filter Students in Admin Panel
+        function filterStudents() {
+            const searchTerm = document.getElementById('searchStudent').value.toLowerCase();
+            
+            const filteredStudents = allStudentsData.filter(student => {
+                return (
+                    (student.fullName && student.fullName.toLowerCase().includes(searchTerm)) ||
+                    (student.email && student.email.toLowerCase().includes(searchTerm)) ||
+                    (student.phone && student.phone.toLowerCase().includes(searchTerm))
+                );
+            });
+            
+            displayStudents(filteredStudents);
+        }
+
+        // View Student Details (Admin Function)
+        function viewStudentDetails(studentId) {
+            const student = allStudentsData.find(s => s.id === studentId);
+            if (!student) return;
+            
+            const modal = document.getElementById('studentDetailsModal');
+            const contentDiv = document.getElementById('studentDetailsContent');
+            
+            contentDiv.innerHTML = `
+                <div class="student-details-grid">
+                    <div class="student-detail-card">
+                        <h4>Full Name</h4>
+                        <p>${student.fullName || 'Unknown'}</p>
+                    </div>
+                    <div class="student-detail-card">
+                        <h4>Email</h4>
+                        <p>${student.email}</p>
+                    </div>
+                    <div class="student-detail-card">
+                        <h4>Phone</h4>
+                        <p>${student.phone || 'Not set'}</p>
+                    </div>
+                    <div class="student-detail-card">
+                        <h4>Total Attendance</h4>
+                        <p>${student.totalAttendance} days</p>
+                    </div>
+                    <div class="student-detail-card">
+                        <h4>Last Attendance</h4>
+                        <p>${student.lastAttendance}</p>
+                    </div>
+                    <div class="student-detail-card">
+                        <h4>Role</h4>
+                        <p>${student.role || 'student'}</p>
+                    </div>
+                </div>
+                
+                <h3 style="margin-top: 20px;">Attendance Records</h3>
+                <div class="student-attendance-records">
+                    ${student.attendanceRecords.length > 0 ? 
+                        student.attendanceRecords.map(record => `
+                            <div class="attendance-record">
+                                <p><strong>Date:</strong> ${record.day}, ${record.date}</p>
+                                <p><strong>Time:</strong> ${record.time}</p>
+                            </div>
+                        `).join('') : 
+                        '<p>No attendance records found.</p>'
+                    }
+                </div>
+            `;
+            
+            modal.style.display = 'block';
+        }
+
+        // Export to CSV (Admin Function)
+        function exportToCSV() {
+            if (allStudentsData.length === 0) {
+                alert('No data to export.');
+                return;
+            }
+            
+            let csvContent = "data:text/csv;charset=utf-8,";
+            
+            // Add header
+            csvContent += "Name,Email,Phone,Total Attendance,Last Attendance,Role\n";
+            
+            // Add data
+            allStudentsData.forEach(student => {
+                const row = [
+                    student.fullName || 'Unknown',
+                    student.email,
+                    student.phone || '',
+                    student.totalAttendance,
+                    student.lastAttendance,
+                    student.role || 'student'
+                ].map(field => `"${field}"`).join(',');
+                
+                csvContent += row + "\n";
+            });
+            
+            // Create download link
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "students_data.csv");
+            document.body.appendChild(link);
+            
+            // Trigger download
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Open Admin Panel
+        function openAdminPanel() {
+            document.getElementById('adminModal').style.display = 'block';
+        }
+
+        // Close Modal
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
         }
 
-        window.onclick = function(event) {
-            const modals = document.getElementsByClassName('modal');
-            for (let modal of modals) {
-                if (event.target == modal) {
-                    modal.style.display = 'none';
-                }
+        // Logout Function
+        function logout() {
+            if (auth) {
+                auth.signOut().then(() => {
+                    localStorage.removeItem('currentUser');
+                    window.location.href = 'index.html';
+                }).catch(error => {
+                    console.error('Logout error:', error);
+                    // Fallback: clear localStorage and redirect
+                    localStorage.removeItem('currentUser');
+                    window.location.href = 'index.html';
+                });
+            } else {
+                // Fallback: clear localStorage and redirect
+                localStorage.removeItem('currentUser');
+                window.location.href = 'index.html';
             }
         }
 
-        // Logout function
-        function logout() {
-            localStorage.removeItem('currentUser');
-            if (auth) {
-                auth.signOut();
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modals = document.getElementsByClassName('modal');
+            for (let modal of modals) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
             }
-            window.location.href = 'index.html?logout=true';
         }
     </script>
 </body>
